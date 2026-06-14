@@ -1,0 +1,11 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+*.swp
+
+# Editor / local
+.idea/
+.vscode/
+
+# Copy-install marker left by install.sh in copied skills
+skills/*/.installed-from

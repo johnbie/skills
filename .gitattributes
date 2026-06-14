@@ -1,0 +1,13 @@
+# Keep line endings consistent across machines.
+* text=auto
+*.md text
+
+# Shell scripts MUST stay LF — install.sh breaks under bash if a Windows
+# checkout (core.autocrlf=true) rewrites the shebang to CRLF.
+*.sh text eol=lf
+
+# Binaries — never normalize.
+*.png binary
+*.jpg binary
+*.gif binary
+*.pdf binary
