@@ -2,7 +2,7 @@
 
 Check that the **agent itself** is equipped for a repo's work — that the skills and MCP servers the repo declares it needs are actually installed and configured in the CLI agent driving it. Cross-agent (Claude Code, Codex CLI, Cursor); read-only: for each agent installed on the machine it reports which required skills are present and which MCP servers are configured, each gap paired with the fix command. Never installs, authenticates, or edits anything.
 
-Where [`repo-doctor`](../repo-doctor) asks "is the *repo* buildable?", agent-doctor asks "is the *agent* equipped?" — and `cos-doctor` (in `cos-tools`) asks "is the *orchestration* set up?". Three lanes, no overlap.
+Where [`repo-doctor`](../repo-doctor) asks "is the *repo* buildable?", agent-doctor asks "is the *agent* equipped?". Two lanes, no overlap.
 
 ## Install
 
@@ -51,6 +51,6 @@ No `AGENTS.md`, or no `## Requirements` section → there's nothing to check, an
 
 Reads the repo's `## Requirements` declaration, detects which of Claude Code / Codex CLI / Cursor are installed on the machine, and for each *installed* agent checks whether the declared skills are present (in its skills directories) and the declared MCP servers are configured (via `claude mcp list` / `cursor-agent mcp list` / `codex mcp list`, falling back to config files). Prints one matrix of requirement × agent, each gap paired with the exact install/configure command. An agent that isn't installed is reported "skipped", never a failure.
 
-It stays in its lane and is agent-agnostic: it does **not** check the repo toolchain (that's `repo-doctor`) or the Chief-of-Staff orchestration layer (that's `cos-doctor` in `cos-tools`).
+It stays in its lane and is agent-agnostic: it does **not** check the repo toolchain — that's `repo-doctor`.
 
 Full flow, the verified per-agent paths, and the report format live in [`SKILL.md`](./SKILL.md).
