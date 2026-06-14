@@ -17,8 +17,9 @@ Nothing here assumes a Chief-of-Staff vault or any orchestration setup — that'
 Each skill lives under `skills/<name>/` and is invoked from a CLI agent session.
 
 - **`repo-doctor`** — given any repo, dynamically infers the toolchain it needs (from `package.json`, `pyproject.toml`/`uv.lock`, `sfdx-project.json`, `Cargo.toml`, `go.mod`, …) and checks that toolchain plus the dev-flow tools (`git`, `gh`) the commit→PR loop depends on. Read-only: reports what's installed, authenticated, and missing, each gap paired with the fix command.
+- **`agent-doctor`** — checks that the *agent* is equipped for a repo's work: it reads the skills and MCP servers the repo declares in its `AGENTS.md` `## Requirements`, then checks each of Claude Code, Codex CLI, and Cursor (those installed) for whether the skill is present and the MCP server configured. Read-only and cross-agent: reports gaps with fix commands; never installs or authenticates. Companion to `repo-doctor` (repo toolchain) and `cos-doctor` (CoS orchestration, in `cos-tools`).
 
-Planned: `ddd-diagnose` and `pattern-diagnose` (read-only design audits) feeding a `refactor` (apply) skill, plus a `standards/` area they consult.
+Planned: a `standards/` area encoding coding conventions, and design-diagnosis skills that consult it. (Earlier sketches of `ddd-diagnose`/`pattern-diagnose`/`refactor` are on hold — not imminent.)
 
 ## Install
 
