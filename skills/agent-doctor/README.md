@@ -47,6 +47,18 @@ agent-doctor checks nothing it isn't told to. The repo declares what it needs in
 
 No `AGENTS.md`, or no `## Requirements` section → there's nothing to check, and agent-doctor says exactly that and stops. It never infers requirements.
 
+**Scoping to specific agents.** By default each requirement is checked against every installed agent. For agent-specific requirements (a Claude Code–only skill is meaningless in Cursor), narrow the scope — per requirement with a trailing `(agents: claude, cursor)`, or for a whole single-agent repo with one `Default agents: claude` line under the `## Requirements` heading. An installed agent outside a requirement's scope shows `–` (not applicable), never a gap.
+
+```markdown
+## Requirements
+
+Default agents: claude
+
+### Skills
+- `cos-upgrade` — vault baseline upgrade (source: github.com/johnbie/cos-tools)
+- `repo-doctor` — toolchain readiness (source: github.com/johnbie/skills) (agents: claude, cursor)
+```
+
 ## What it does
 
 Reads the repo's `## Requirements` declaration, detects which of Claude Code / Codex CLI / Cursor are installed on the machine, and for each *installed* agent checks whether the declared skills are present (in its skills directories) and the declared MCP servers are configured (via `claude mcp list` / `cursor-agent mcp list` / `codex mcp list`, falling back to config files). Prints one matrix of requirement × agent, each gap paired with the exact install/configure command. An agent that isn't installed is reported "skipped", never a failure.
