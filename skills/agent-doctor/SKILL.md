@@ -36,6 +36,25 @@ The expected format is human-readable Markdown — two optional subsections, eac
 
 Parsing is deliberately forgiving: the requirement name is the first backtick-quoted token on each bullet under the `### Skills` / `### MCP servers` headings (case-insensitive heading match; `MCP servers`, `MCP`, and `Servers` all accepted). Text after the name (purpose, source) is shown in the report but not required. A repo may declare only skills, only MCP servers, or both.
 
+### Scoping a requirement to specific agents
+
+By default a requirement is checked against **every installed agent** — correct for cross-agent skills (a `repo-doctor` SKILL.md works in Claude Code, Codex, or Cursor alike). But some requirements are agent-specific: a Claude Code–only orchestration skill has no meaning for Cursor, and checking it there is noise, not a gap. A requirement may therefore declare which agents it applies to, two ways:
+
+```markdown
+## Requirements
+
+Default agents: claude
+
+### Skills
+- `cos-upgrade` — vault baseline upgrade (source: github.com/johnbie/cos-tools)
+- `repo-doctor` — toolchain readiness (source: github.com/johnbie/skills) (agents: claude, cursor)
+```
+
+- **Per-requirement marker:** a trailing `(agents: <comma-separated>)` on a bullet scopes *that* requirement. Tokens are case-insensitive and accept the obvious aliases — `claude` / `claude code`, `cursor` / `cursor-agent`, `codex` / `codex cli`.
+- **Section default:** an optional `Default agents: <comma-separated>` line anywhere between the `## Requirements` heading and the first subsection sets the scope for every requirement that lacks its own marker. Use it for repos driven by a single agent (the whole repo is, say, Claude-only) instead of repeating the marker on every line.
+
+**Effective scope resolution, per requirement:** its own `(agents: …)` marker, else the `Default agents:` line, else **all installed agents**. agent-doctor checks and reports a requirement only against agents in its effective scope; an installed agent *outside* a requirement's scope is shown as `–` (not applicable) and never counts as a gap. Unknown agent tokens are reported once as a warning (a likely typo) and otherwise ignored.
+
 **If `AGENTS.md` is absent, or it has no `## Requirements` section, say so clearly and stop.** There is nothing to check — that is the whole result. Do not fall back to inference, and do not scan the repo for what it "might" need; the absence of a declaration is itself the report. (Optionally note that a repo can opt in by adding a `## Requirements` section, and show the format above.)
 
 ## How it runs
@@ -44,11 +63,11 @@ Run the steps in order; capture output; then synthesize one report — don't str
 
 ### Step 1 — read the declaration
 
-Read `AGENTS.md` at the repo root. Extract the required **skills** and required **MCP servers** from `## Requirements`. If the file or the section is missing, stop and report that (above). Otherwise you now have two lists (either may be empty).
+Read `AGENTS.md` at the repo root. Extract the required **skills** and required **MCP servers** from `## Requirements`. For each requirement, also resolve its **effective agent scope** (per-requirement `(agents: …)` marker → `Default agents:` line → all installed agents — see [Scoping a requirement](#scoping-a-requirement-to-specific-agents)). If the file or the section is missing, stop and report that (above). Otherwise you now have two lists (either may be empty), each entry carrying its scope.
 
 ### Step 2 — detect which agents are installed
 
-Probe each of the three agents. Only an installed agent is checked; the rest are reported "not installed — skipped".
+Probe each of the three agents. Only an installed agent is checked; the rest are reported "not installed — skipped". An agent is only ever checked for a requirement when it is **both** installed **and** in that requirement's effective scope.
 
 ```sh
 command -v claude       >/dev/null 2>&1 && claude --version 2>&1 | head -1   || echo "claude: not installed"
@@ -56,9 +75,9 @@ command -v codex        >/dev/null 2>&1 && codex --version  2>&1 | head -1   || 
 command -v cursor-agent >/dev/null 2>&1 && cursor-agent --version 2>&1 | head -1 || echo "cursor-agent: not installed"
 ```
 
-### Step 3 — check skills, per installed agent
+### Step 3 — check skills, per in-scope installed agent
 
-A skill is "installed" for an agent if a directory named after it, containing a `SKILL.md`, exists in that agent's skills path (personal or project scope). Check both scopes; report which scope satisfied it. Locations (verified — see the table below; if a path doesn't exist on this machine, treat it as "no skills there" rather than an error):
+Check each skill only against agents in its effective scope (intersected with what's installed). A skill is "installed" for an agent if a directory named after it, containing a `SKILL.md`, exists in that agent's skills path (personal or project scope). Check both scopes; report which scope satisfied it. Locations (verified — see the table below; if a path doesn't exist on this machine, treat it as "no skills there" rather than an error):
 
 | Agent | Personal skills | Project skills | Notes |
 |---|---|---|---|
@@ -73,9 +92,9 @@ A skill is "installed" for an agent if a directory named after it, containing a 
 
 Use a glob over the candidate dirs rather than assuming one exact path; a skill found in *any* of an agent's candidate locations counts as installed for that agent.
 
-### Step 4 — check MCP servers, per installed agent
+### Step 4 — check MCP servers, per in-scope installed agent
 
-Prefer each agent's own status command (it reflects the live, merged config); fall back to parsing the config file only if the command is unavailable. Match the declared server name against the configured server names (the identifier, not the URL).
+As with skills, check each server only against agents in its effective scope (intersected with what's installed). Prefer each agent's own status command (it reflects the live, merged config); fall back to parsing the config file only if the command is unavailable. Match the declared server name against the configured server names (the identifier, not the URL).
 
 | Agent | Status command (preferred) | Config fallback |
 |---|---|---|
@@ -93,36 +112,33 @@ A server is **configured** if its name appears in the agent's list/config. Note 
 
 ### Step 5 — report
 
-Emit one consolidated report (format below): the declaration that was found, then a matrix of requirement × agent, then a Fix list covering only the gaps for agents that are actually installed.
+Emit one consolidated report (format below): the declaration that was found, then a matrix of requirement × agent, then a Fix list covering only the gaps for in-scope installed agents.
 
 ## The report format
 
 ```
 agent-doctor — <repo name>
-Declares (AGENTS.md ## Requirements): skills [repo-doctor, agent-doctor], MCP [github, postgres]
+Declares (AGENTS.md ## Requirements): skills [cos-upgrade, repo-doctor], MCP [github]
+Default agents: claude
 Agents detected: Claude Code 2.1.x ✓ · Cursor (cursor-agent) ✓ · Codex CLI — not installed
 
-Overall: EQUIPPED  |  GAPS (N missing for installed agents)
+Overall: EQUIPPED  |  GAPS (N missing for in-scope installed agents)
 
 Skills
                      Claude Code     Cursor
-  repo-doctor        ✓ (~/.claude)   ✗ missing
-  agent-doctor       ✓ (~/.claude)   ✗ missing
+  cos-upgrade        ✓ (~/.claude)   –            (scope: claude)
+  repo-doctor        ✓ (~/.claude)   ✗ missing    (scope: claude, cursor)
 MCP servers
                      Claude Code     Cursor
-  github             ✓ configured    ✓ configured
-  postgres           ✗ missing       ⚠ configured, needs auth
+  github             ✓ configured    –            (scope: claude)
 
 Codex CLI — not installed, skipped.
 
 Fix
   - Cursor / repo-doctor:  ln -s <skills-checkout>/skills/repo-doctor ~/.cursor/skills/repo-doctor
-  - Cursor / agent-doctor: ln -s <skills-checkout>/skills/agent-doctor ~/.cursor/skills/agent-doctor
-  - Claude Code / postgres MCP: claude mcp add postgres -- <command…>   (see the repo's Requirements note)
-  - Cursor / postgres MCP auth: cursor-agent mcp login postgres
 ```
 
-Use ✓ / ⚠ / ✗. A **declared skill missing** or **declared MCP server not configured** for an *installed* agent is a gap (GAPS). A server **configured but unauthenticated** is a warning. An **agent not installed** is neither — it's skipped and called out separately, never counted as a gap. If every installed agent has every declared requirement, the verdict is EQUIPPED. Keep the matrix terse; put commands in the Fix list.
+Use ✓ / ⚠ / ✗ / – . A **declared skill missing** or **declared MCP server not configured** for an *in-scope, installed* agent is a gap (GAPS). A server **configured but unauthenticated** is a warning. An agent that is **not installed** (skipped, called out separately) or **out of a requirement's scope** (shown `–`) is neither — never a gap. Show each requirement's `(scope: …)` only when it isn't the default-all-agents (i.e. when a marker or `Default agents:` narrowed it), so the reader sees *why* a cell is `–`. If every in-scope installed agent has every declared requirement, the verdict is EQUIPPED. Keep the matrix terse; put commands in the Fix list.
 
 ## Fix commands to draw from
 
