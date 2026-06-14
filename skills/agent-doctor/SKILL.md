@@ -9,13 +9,12 @@ description: Check that the AGENT itself is equipped for a repo's work — that 
 
 It is **read-only and cross-agent**: it runs detection and status commands only — never installs a skill, runs a login/auth flow, or edits any file — and it checks Claude Code, Codex CLI, and Cursor side by side. An agent that isn't installed on the machine is reported "not installed — skipped", never a failure.
 
-It is the third of three mutually-exclusive "-doctor" checks; together they cover repo, agent, and orchestration, and each stays strictly in its lane:
+It pairs with `repo-doctor`, and each stays strictly in its lane:
 
 - **`repo-doctor`** (this repo) — the *repo's* toolchain and dev-flow tools (`node`, `uv`, `git`, `gh`, …). Is the repo buildable?
 - **`agent-doctor`** (this skill) — the *agent's* skills and MCP servers, against the repo's declaration. Is the agent equipped?
-- **`cos-doctor`** (separate, in `cos-tools`) — the *Chief-of-Staff orchestration layer* (`tmux`, the `claude` session topology, vault wiring). Is the orchestration set up?
 
-agent-doctor does **not** infer requirements, check the toolchain, or touch orchestration — those are the other two's jobs.
+agent-doctor does **not** infer requirements or check the toolchain — that's `repo-doctor`'s job.
 
 ## The source of truth: the repo's `## Requirements`
 
@@ -144,7 +143,6 @@ Whenever the repo's `## Requirements` gives a source or command for a requiremen
 - **No inferring requirements.** It checks only what `AGENTS.md`'s `## Requirements` declares. No declaration → no check.
 - **No installing or authenticating.** It reports the command; you run it. Safe to run anywhere.
 - **No toolchain checks.** Whether `node`/`uv`/`git`/`gh` are present is `repo-doctor`'s job.
-- **No orchestration checks.** `tmux`, the `claude` session topology, and vault wiring are `cos-doctor`'s job (in `cos-tools`).
 - **No edits.** It only reads `AGENTS.md`, skills directories, and MCP config/status.
 
 ## Reference
